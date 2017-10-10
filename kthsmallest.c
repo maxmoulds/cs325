@@ -122,21 +122,31 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
   struct rec input;
   rtrace("Welcome to hell level %d (you are coming from %d) :: m = %d :: n = %d :: k = %d ::", getpid(), getppid(), m, n, k);
   int ibase = endElem(iend, ibegin, m, true); //base is the set we are starting with. 
-  int iradix = ((int)ceil((iend[ibase] - ibegin[ibase])/2));
+  int iradix = ((int)((iend[ibase] - ibegin[ibase])/2) + ibegin[ibase]);
   fseek(file[ibase], iradix*sizeof(unsigned int), SEEK_SET);
   fread(&input,sizeof(struct rec),1,file[ibase]); 
   rewind(file[ibase]);
   unsigned int radix = htonl(input.x);
-  rtrace("radix = %x",radix);
-  rtrace("BASE M-SET: Updating k-count :: old = %d :: new = %d ::", kcount, (iradix-ibegin[i]));
-  kcount += (iradix-ibegin[ibase]);
+  rtrace("radix = %.0f",((float)(radix/1.0)));
+  rtrace("BASE M-SET: Updating k-count :: old = %d :: newINVALID = %d ::", kcount, (iradix-ibegin[ibase]));
+  //kcount += (iradix-ibegin[ibase]);
   //bin search. 
   unsigned int tempelem;
   //base cases
   if (k == 1)
   {
-    //do some shit 
-    return (rtrace("An answer"));
+    tempelem = NON_ELEM;
+    for (i = 0; i < m; i++) 
+    {
+      fseek(file[i], ibegin[i]*sizeof(unsigned int), SEEK_SET);
+      fread(&input,sizeof(struct rec),1,file[i]); 
+      rewind(file[i]);
+      if (tempelem > htonl(input.x))
+      {
+        tempelem = htonl(input.x);
+      }
+    }
+    return (rtrace("An answer is = %.0f",((float)(tempelem/1.0))));
   }
   //base case
   else if (kcount == k) 
@@ -146,7 +156,7 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
     for (i = 0; i < m; i++)
     {
       tempelem = NON_ELEM;
-      if (iend[i] != ibegin[i])
+      if (iend[i] > ibegin[i])
       {
         fseek(file[i], iend[i]*sizeof(unsigned int), SEEK_SET);
         fread(&input,sizeof(struct rec),1,file[i]); 
@@ -158,35 +168,33 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
       }
       else
       {
+        rtrace("an array is deadened");
         //return(rtrace("SUPER NASTY BASE CASE PROBLEMS"));
       }
     }
-    return (tempelem);
-  }
-  //if there is 1 or 0 elems left in msets. 
-  else if ()
-  {
-    //get all remaining elems
-    //sort it, return. 
+    return (rtrace("base ending k = kcount, answer is = %.0f", ((float)(tempelem/1.0))));
   }
   //all msets below ibase, general case, not a base case below. 
   else
   {
+    bool toofewelems = true; 
     for (i = 0; i < m; i++)
     {
       if (i == ibase)
       {
         rtrace("...not doing ibase twice");
       }
-      else if (iend[i] == ibegin[i])
+      else if ((iend[i] - ibegin[i]) < 0)
       {
         rtrace("SILENCE YOU INSIGNIFICANT M-SET :: %d ::", i);
       }
       else
       {
+        //go ahead and binsearch. 
+        toofewelems = false;
         rtrace("i is :: %d ::", i);
         bool binfound = false;
-        iradix = ((int)ceil((iend[i] - ibegin[i])/2));
+        iradix = ((int)((iend[i] - ibegin[i])/2) + ibegin[i]);
         while (binfound == false)
         {
           //get index
@@ -198,13 +206,76 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
           //check elem. 
           if (tempelem <= radix) 
           {
-            //go left
-            rtrace("left :: %x <= %x ::", tempelem, radix);
+            //binfound. add to kcount
+            //we now need to go right to make sure that the elem is the actual
+            //smallest.
+            bool smallest = false; 
+            int tempradix = ((iend[i] - ibegin[i])/2) + ibegin[i];
+            unsigned int itempelem = NON_ELEM;
+            while (smallest == false)
+            {
+              sleep(1);
+              //check the right. 
+              if (tempradix == iend[i])
+              {
+                //read the last value
+                fseek(file[i], iend[i]*sizeof(unsigned int), SEEK_SET);
+                fread(&input,sizeof(struct rec),1,file[i]);
+                rewind(file[i]);
+                if (htonl(input.x) <= radix)
+                {
+                  //dont deaden
+                  iradix = tempradix;
+                  smallest = true;
+                  binfound = true;
+                  //do something?
+                  rtrace("i think we are done binary searching...");
+                }
+                else
+                {
+                  smallest = true;
+                  binfound = true;
+                  //also dont anything. 
+                  //deaden array 
+                }
+              }
+              else 
+              {
+                fseek(file[i], tempradix*sizeof(unsigned int), SEEK_SET);
+                fread(&input,sizeof(struct rec),1,file[i]);
+                rewind(file[i]);
+                rtrace("tempradix elem value = %0.f, i = %d, ibegin = %d, iend = %d, radix = %d,", ((float)(htonl(input.x))), i, ibegin[i], iend[i], radix);
+                itempelem = ((float)(htonl(input.x)));
+                if (iend[i] == ibegin[i]) 
+                {
+                  rtrace("here is the probelm");
+                }
+                else if (itempelem > radix) 
+                {
+                  //we know that no elements past where we are are candidates
+                  iend[i] = tempradix;
+                  smallest = true;
+                  binfound = true;
+                  //go left. 
+                }
+                else if (itempelem < radix) // (itempelem <= radix)
+                {
+                  tempradix = ((iend[i] - tempradix)/2) + ibegin[i];
+                  //go right
+                }
+                else
+                {
+                  //it equals == radix or we are at the end. 
+                }
+                tempradix = ((iend[i] - tempradix)/2) + tempradix;
+              }
+            }//while
+            rtrace("left :: %x <= %.0f ::", tempelem, ((float)(radix/1.0)));
             // we are done, so update indexes. 
-            iend[i] = iradix; //set the i-th m-set ending element to the current radix index. 
+            //iend[i] = iradix; //set the i-th m-set ending element to the current radix index. 
             //update k-statusii
-            rtrace("Updating k-count :: old = %d :: new = %d ::", kcount, (iend[i]-ibegin[i]));
-            kcount += (iend[i]-ibegin[i]);
+            //rtrace("Updating k-count :: old = %d :: new = %d ::", kcount, (iend[i]-ibegin[i]));
+            //kcount += (iend[i]-ibegin[i]);
             binfound = true; //leave to get next m-set (i++)
           }
           else if (tempelem > radix)
@@ -212,7 +283,8 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
             //go right
             if (iradix > 1)
             {
-              iradix = ceil(iradix/2);
+              //binsearch select next elem.
+              iradix = (iradix/2);
             }
             else if (iradix == 1)
             {
@@ -221,35 +293,64 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
             }
             else 
             {
-              rtrace("iradix is 0 and this entire mset is not going to contribute... slacker");
-              iend[i] = 0;
-              ibegin[i] = 0;
-              //should i also decrement m.
-              //reset radix.
-              binfound = true; //because we are giving up on this mset. 
+              //deadening the array
+              if (k <= kcount)
+              {
+                rtrace("iradix is 0 and this entire mset is not going to contribute... slacker");
+                iend[i] = 0;
+                ibegin[i] = 1;
+                //should i also decrement m.
+                //reset radix.
+                binfound = true; //because we are giving up on this mset. 
+              }
+              else if (k > kcount)
+              {
+                rtrace("keep the top half");
+                //iend[i] stays the same
+                ibegin[i] = iradix;
+              }
+              else
+              {
+                rtrace("Super duper error in binsearch deadening");
+              }
             }
             rtrace("right, a (possibly) new iradix is :: %d ::", iradix);
-          }
+          }//for loop
+          //done with binsearch
           else
           {
             rtrace("Something horribly wrong");
           }
         }//end while
       }//end else in for
+      //end BINSEARCH
     }//end for
+    //
+    if (toofewelems == true)
+    {
+      //that one base case we skipped. 
+      return(rtrace("toofewelems - we should have elem :: k = %d :: ibase = %d :: iradix = %d :: radix = %.0f :: kcount = %d :: ", k, ibase, iradix, ((float)(radix/1.0)), kcount));
+    }
   }//end k == 1 catch
 
+  //time to kcount. 
+  for (i = 0; i < m; i++)
+  {
+    kcount += (iend[i] - ibegin[i]);
+    rtrace("kcount has been updated to %d", kcount);
+  }
   //okay now if kcount is ...
   if (kcount > k)
   {
     //left side
     //no need to recurse?...
     //sort karray...
-    rtrace("i is %d, input.x is %x", i, htonl(input.x));
-    fseek(file[ibase], k*sizeof(unsigned int), SEEK_SET);
-    fread(&input,sizeof(struct rec),1,file[ibase]);
-    rewind(file[ibase]);
-    return (rtrace("I swear we have the answer, its just not ready for the spotlight yet, but i'll try. :: %x :: at(i):: %d ::",htonl(input.x), k));
+    return (rtrace("...a rabbit hole = %d", recursive(m, n, k, ibegin, iend, file))); 
+    //rtrace("i is %d, input.x is %x", i, htonl(input.x));
+    //fseek(file[ibase], k*sizeof(unsigned int), SEEK_SET);
+    //fread(&input,sizeof(struct rec),1,file[ibase]);
+    //rewind(file[ibase]);
+    //return (rtrace("I swear we have the answer, its just not ready for the spotlight yet, but i'll try. :: %.0f :: at(i):: %d ::",((float)(htonl(input.x)/1.0)), k));
   }
   else 
   {
