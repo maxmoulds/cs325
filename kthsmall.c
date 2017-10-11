@@ -192,6 +192,7 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
   //
   else
   {
+    //ensure k is no-larger than m. at this point. 
     bool toofewelems = true;
     for (i = 0; i < m; i++)
     {
@@ -215,7 +216,11 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
         }
       }
       qsort((void*)karray, j+1, sizeof(karray[0]), int_cmp);
-      return (rtrace("the answer is %.0f", ((float)(karray[j]/1.0))));
+      if (k > j)
+      {
+        return(err("you should never see this. k = %d, j = %d, i = %d", k, j, i));
+      } 
+      return (rtrace("the answer is %.0f", ((float)(karray[k-1]/1.0))));
     }
   }
   // ----- HERE IS WHERE WER ERRR
