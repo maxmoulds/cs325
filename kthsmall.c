@@ -48,9 +48,10 @@ struct rec
   unsigned int x;
 };
 
-int recursive(int n, int m, int k, int * ibegin, int * iend, FILE * file[]);
+unsigned int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[]);
 int endElem(int * endArray, int * begArray, int length, bool big_small);
 int int_cmp(const void *a, const void *b);
+int binsearch(int ibegin, int iend, unsigned int radix, FILE * file[], int m);
 
 int main(int argc, char * argv[]) // <prog> [input.txt] [output.txt]
 {
@@ -92,15 +93,15 @@ int main(int argc, char * argv[]) // <prog> [input.txt] [output.txt]
   int * iend = (int *)calloc(m, sizeof(int)); //tracks the end
   for (i = 0; i < m; i++) 
   {
-    iend[i] = (n-1); //could be off by 1
+    iend[i] = (n-1);
   }
-  //trace("testing ith of beg and end ::beg %d ::end %d",ibegin[0], iend[m-1]);
+  trace("testing ith of beg and end ::beg %d ::end %d",ibegin[0], iend[m-1]);
   //stuff for this driver
   struct timeval  tv1, tv2;
   gettimeofday(&tv1, NULL);
   /* Do sutff */
   trace("Entering Hell (%d) :: m = %d :: n = %d :: k = %d ::", getpid(), m, n, k);
-  trace("The k-th smallest element is :: %d ::", recursive(m,n,k,ibegin,iend,file));
+  printf("The k-th smallest element is :: %u ::", recursive(m,n,k,ibegin,iend,file));
   /* nothing past this moment */
   gettimeofday(&tv2, NULL);
   trace("Total time = %f seconds", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
@@ -114,27 +115,16 @@ int main(int argc, char * argv[]) // <prog> [input.txt] [output.txt]
   //TIME TO DIE
   return 0;
 }
-int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
+unsigned int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
 {
   int i = 0;
   int j = 0;
-  int kcount = 0; //how many we have found. 
+  unsigned int split[m];
+  unsigned int kcount = 0; //how many we have found. 
   unsigned int karray[m]; //hmm...
   struct rec input;
   rtrace("Welcome to hell level %d (you are coming from %d) :: m = %d :: n = %d :: k = %d ::", getpid(), getppid(), m, n, k);
-  int ibase = endElem(iend, ibegin, m, true); //base is the set we are starting with. 
-  int iradix = ((int)((iend[ibase] - ibegin[ibase])/2) + ibegin[ibase]);
-
-  fseek(file[ibase], iradix*sizeof(unsigned int), SEEK_SET);
-  fread(&input,sizeof(struct rec),1,file[ibase]); 
-  rewind(file[ibase]);
-  unsigned int radix = htonl(input.x);
-  rtrace("radix = %.0f",((float)(radix/1.0)));
-  rtrace("BASE M-SET: Updating k-count :: old = %d :: newINVALID = %d ::", kcount, (iradix-ibegin[ibase]));
-  //kcount += (iradix-ibegin[ibase]);
-  //bin search. 
   unsigned int tempelem;
-
   //base cases
   if (k == 1)
   {
@@ -158,36 +148,7 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
         }
       }
     }
-    return (rtrace("THE answer is = %.0f",((float)(tempelem/1.0))));
-  }
-  //base case
-  else if (kcount == k) 
-  {
-    //get the largest elem at the end. 
-    for (i = 0; i < m; i++)
-    {
-      if (ibegin[i] <= iend[i])//selects all undeadedended
-      {
-        tempelem = NON_ELEM;
-        fread(&input,sizeof(struct rec),1,file[i]); 
-        rewind(file[i]);
-      }
-      if (htonl(input.x) > tempelem)
-      {
-        tempelem = htonl(input.x);
-      }
-      else if (ibegin[i] > iend[i])
-      {
-        rtrace("an array is deadened");
-        //return(rtrace("SUPER NASTY BASE CASE PROBLEMS"));
-      }
-      else 
-      {
-        //something
-        rtrace("Noman's land. kcount = 1");
-      }
-    }//end for
-    return (rtrace("base ending k = kcount, answer is = %.0f", ((float)(tempelem/1.0))));
+    return (((float)(tempelem/1.0)));
   }
   //
   else
@@ -218,27 +179,113 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
       qsort((void*)karray, j+1, sizeof(karray[0]), int_cmp);
       if (k > j)
       {
-        return(err("you should never see this. k = %d, j = %d, i = %d", k, j, i));
+        return -1;// (err("you should never see this. k = %d, j = %d, i = %d", k, j, i));
       } 
-      return (rtrace("the answer is %.0f", ((float)(karray[k-1]/1.0))));
+      return ((float)(karray[k-1]/1.0));
     }
   }
-  // ----- HERE IS WHERE WER ERRR
+  rtrace("done with base case");
+  //truncate arrays to their length k. 
   for (i = 0; i < m; i++)
   {
-    kcount += (iend[i] - ibegin[i]);
-    rtrace("kcount has been updated to %d", kcount);
+    if (((iend[i] - ibegin[i])+1) > k)
+    {
+      iend[i] = (ibegin[i] + k-1);
+      rtrace("k= %d, ibegin[i] = %d", k, iend[i]);
+    }
+  }
+  //grab largest array. 
+  int ibase = endElem(iend, ibegin, m, true); //base is the set we are starting with.
+  rtrace("iradix = %d, iend = %d, ibegin = %d", ((iend[ibase] - ibegin[ibase])/2 + ibegin[ibase]), iend[ibase], ibegin[ibase]);
+  int iradix = ((iend[ibase] - ibegin[ibase])/2 + ibegin[ibase]);
+  fseek(file[ibase], iradix*sizeof(unsigned int), SEEK_SET);
+  fread(&input,sizeof(struct rec),1,file[ibase]); 
+  rewind(file[ibase]);
+  unsigned int radix = (htonl(input.x));//split points
+  //binary searc
+  rtrace("starting binsearch ibase = %d, radix = %u", ibase, radix); 
+  for (i = 0; i < m; i++)
+  {
+    //if not the largest array
+    if ( i == ibase )
+    {
+      split[i] = iradix;
+      rtrace("ibase split[i] = %d", split[i]);
+    }
+    else
+    {
+      split[i] = binsearch(ibegin[i], iend[i], radix, file, i);
+      rtrace("split[i] = %d", split[i]);
+    }
+  }
+  for (i = 0; i < m; i++)
+  {
+    rtrace("BIG split[i] = %d", split[i]);
+    if (split[i] >=0)
+    {
+      kcount += (split[i]-ibegin[i] +1);
+    }
+  }
+  if (kcount == k)  
+  {
+    rtrace("In kcount = k");
+    //get the largest elem at the end. 
+    for (i = 0; i < m; i++)
+    {   
+      if (split[i] >= 0)   //(ibegin[i] <= iend[i])//selects all undeadedended
+      {   
+        tempelem = NON_ELEM;
+        fread(&input,sizeof(struct rec),1,file[i]); 
+        rewind(file[i]);
+      }   
+      if (htonl(input.x) >= tempelem)
+      {   
+        tempelem = htonl(input.x);
+      }   
+      else if (ibegin[i] > iend[i])
+      {   
+        rtrace("an array is deadened");
+        //return(rtrace("SUPER NASTY BASE CASE PROBLEMS"));
+      }   
+      else 
+      {   
+        //something
+        rtrace("Noman's land. kcount = 1");
+      }   
+    }//end for
+    return (((float)(tempelem/1.0)));
   }
   if (kcount > k)
   {
-    //return (rtrace("...a rabbit hole = %d", recursive(m, n, k, ibegin, iend, file))); 
+    //loop through, if not dead, change end to the split.
+    for (i = 0; i < m; i++) 
+    {
+      if (ibegin[i] >= 0)
+      {
+        iend[i] = split[i];
+        return (recursive(m,n,k,ibegin,iend,file));
+      }
+      else
+      {
+        rtrace("ibegin is error'd");
+      }
+    }
   }
-  else 
+  else if (kcount < k)
   {
-    //return (recursive(m, n,(k-kcount),ibegin, iend, file));
+    for (i = 0; i < m; i++)
+    {
+      if (ibegin[i] >= 0)
+      {
+        ibegin[i] = split[i]+1;
+        rtrace("Kcount = %d", kcount);
+        return (recursive(m,n,(k-kcount),ibegin,iend,file));
+      }
+    }
   }
-  exit(rtrace("WE DID NOT SUCCEED...sad face"));
-}
+  rtrace("kcount = %d", kcount);
+  exit(1);//(rtrace("WE DID NOT SUCCEED...sad face"));
+}//fin
 int endElem(int * endArray, int * begArray, int length, bool big_small) // 0 = smallest 1 = largest
 {
   int i = 0;
@@ -247,6 +294,7 @@ int endElem(int * endArray, int * begArray, int length, bool big_small) // 0 = s
   int ielem = NON_ELEM;
   if (big_small == false)
   {
+    trace("Endarray iend = %d", endArray[0]);
     //return smallest
     for (i = 0; i < length; i++)
     {
@@ -261,6 +309,7 @@ int endElem(int * endArray, int * begArray, int length, bool big_small) // 0 = s
   }
   else 
   {
+    //trace("Endarray iend = %d", endArray[0]);
     for (i = 0; i < length; i++)
     {
       telem = ((endArray[i] - begArray[i]));
@@ -270,6 +319,7 @@ int endElem(int * endArray, int * begArray, int length, bool big_small) // 0 = s
         elem = telem;
       }
     }
+    //trace("Endarray iend = %d", endArray[0]);
     return ielem;
   }
   err("Something is wrong with simple stuff");
@@ -282,4 +332,46 @@ int int_cmp(const void *a, const void *b)
   return *ia  - *ib; 
   /* integer comparison: returns negative if b > a 
      and positive if a > b */ 
-} 
+}
+int binsearch(int ibegin, int iend, unsigned int radix, FILE * file[], int m)
+{
+  struct rec input;
+  int index;
+  if (ibegin == iend)
+  {
+    trace("ibegin == iend");
+    fseek(file[m], iend*sizeof(unsigned int), SEEK_SET);
+    fread(&input,sizeof(struct rec),1,file[m]); 
+    rewind(file[m]);
+    if (htonl(input.x) <= radix)
+    {
+      return iend;
+    }
+    else
+    { 
+      return (-2);
+    }
+  }
+  else if (ibegin > iend)
+  {
+    rtrace("supa dupa error");
+    return -1; 
+  }
+  else
+  {
+    index = (iend - ibegin)/2 + ibegin;
+    fseek(file[m], index*sizeof(unsigned int), SEEK_SET);
+    fread(&input,sizeof(struct rec),1,file[m]);
+    rewind(file[m]);
+    if (htonl(input.x) > radix)
+    {
+      //trace("lefting ibegin = %d, index = %d, radix = %u, m = %d", ibegin, index-1, radix, m);
+      return (binsearch(ibegin, index-1, radix, file, m));
+    }
+    else 
+    {
+      //trace("righting index = %d, iend = %d, radix = %u, m = %d", index+1, iend, radix, m);
+      return (binsearch(index+1, iend, radix, file, m));
+    }
+  }
+}
