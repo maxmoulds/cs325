@@ -13,7 +13,7 @@
 
 #define DEBUG 2
 
-#define NON_ELEM -1
+#define NON_ELEM 0
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -124,67 +124,8 @@ unsigned int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * fil
   unsigned int karray[m]; //hmm...
   struct rec input;
   rtrace("Welcome to hell level %d (you are coming from %d) :: m = %d :: n = %d :: k = %d ::", getpid(), getppid(), m, n, k);
-  unsigned int tempelem;
+  int tempelem;
   //base cases
-  if (k == 1)
-  {
-    tempelem = NON_ELEM;
-    for (i = 0; i < m; i++) 
-    {
-      if (ibegin[i] <= iend[i])
-      {
-
-        fseek(file[i], ibegin[i]*sizeof(unsigned int), SEEK_SET);
-        fread(&input,sizeof(struct rec),1,file[i]); 
-        rewind(file[i]);
-        if (tempelem == NON_ELEM)
-        {
-          tempelem = htonl(input.x);
-        }
-        else if (tempelem > htonl(input.x))
-        {
-          //trace("Shouldnt be here");
-          tempelem = htonl(input.x);
-        }
-      }
-    }
-    return (((float)(tempelem/1.0)));
-  }
-  //
-  else
-  {
-    //ensure k is no-larger than m. at this point. 
-    bool toofewelems = true;
-    for (i = 0; i < m; i++)
-    {
-      if ((iend[i] - ibegin[i]) > 0)
-      {
-        toofewelems = false;
-      }
-    }
-    //check flag. 
-    if (toofewelems == true)
-    {
-      for (i = 0, j = 0; i < m; i++)
-      {
-        if (ibegin[i] == iend[i])
-        {
-          fseek(file[i], iend[i]*sizeof(unsigned int), SEEK_SET);
-          fread(&input,sizeof(struct rec),1,file[i]);
-          rewind(file[i]);
-          karray[j] = htonl(input.x);
-          rtrace("added j = %d to karray from i = %d, value is = %.0f",j, i, ((float)(htonl(input.x)/1.0)));
-        }
-      }
-      qsort((void*)karray, j+1, sizeof(karray[0]), int_cmp);
-      if (k > j)
-      {
-        return -1;// (err("you should never see this. k = %d, j = %d, i = %d", k, j, i));
-      } 
-      return ((float)(karray[k-1]/1.0));
-    }
-  }
-  rtrace("done with base case");
   //truncate arrays to their length k. 
   for (i = 0; i < m; i++)
   {
@@ -226,32 +167,94 @@ unsigned int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * fil
       kcount += (split[i]-ibegin[i] +1);
     }
   }
+  if (k == 1)
+  {
+    tempelem = NON_ELEM;
+    for (i = 0; i < m; i++) 
+    {
+      if (ibegin[i] <= iend[i])
+      {
+
+        fseek(file[i], ibegin[i]*sizeof(unsigned int), SEEK_SET);
+        fread(&input,sizeof(struct rec),1,file[i]); 
+        rewind(file[i]);
+        if (tempelem == NON_ELEM)
+        {
+          tempelem = htonl(input.x);
+        }
+        else if (tempelem > htonl(input.x))
+        {   
+          //trace("Shouldnt be here");
+          tempelem = htonl(input.x);
+        }   
+      }   
+    }   
+    return (((float)(tempelem/1.0)));
+  }
+  else
+  { 
+    //ensure k is no-larger than m. at this point. 
+    bool toofewelems = true;
+    for (i = 0; i < m; i++)
+    {
+      if ((iend[i] - ibegin[i]) > 0)
+      { 
+        toofewelems = false;
+      }
+    }
+    //check flag. 
+    if (toofewelems == true)
+    {
+      for (i = 0, j = 0; i < m; i++)
+      {
+        if (ibegin[i] == iend[i])
+        {
+          fseek(file[i], iend[i]*sizeof(unsigned int), SEEK_SET);
+          fread(&input,sizeof(struct rec),1,file[i]);
+          rewind(file[i]);
+          karray[j] = htonl(input.x);
+          rtrace("added j = %d to karray from i = %d, value is = %.0f",j, i, ((float)(htonl(input.x)/1.0)));
+        }
+      }
+      qsort((void*)karray, j+1, sizeof(karray[0]), int_cmp);
+      if (k > j)
+      { 
+        return -1;// (err("you should never see this. k = %d, j = %d, i = %d", k, j, i));
+      } 
+      return ((float)(karray[k-1]/1.0));
+    }
+  }
   if (kcount == k)  
   {
     rtrace("In kcount = k");
     //get the largest elem at the end. 
+    tempelem = NON_ELEM;
     for (i = 0; i < m; i++)
     {   
       if (split[i] >= 0)   //(ibegin[i] <= iend[i])//selects all undeadedended
       {   
-        tempelem = NON_ELEM;
+        fseek(file[i], split[i]*sizeof(unsigned int), SEEK_SET);
         fread(&input,sizeof(struct rec),1,file[i]); 
         rewind(file[i]);
-      }   
+        rtrace("FUCKKK %u, tempelem = %d", htonl(input.x), tempelem);
+
+      }
       if (htonl(input.x) >= tempelem)
       {   
+        rtrace("AHHHHHHHHHFUCK YOU");
         tempelem = htonl(input.x);
-      }   
-      else if (ibegin[i] > iend[i])
-      {   
-        rtrace("an array is deadened");
-        //return(rtrace("SUPER NASTY BASE CASE PROBLEMS"));
-      }   
-      else 
-      {   
-        //something
-        rtrace("Noman's land. kcount = 1");
-      }   
+      }
+
+      //else if (ibegin[i] > iend[i])
+      //{   
+      //  rtrace("an array is deadened");
+      //  //return(rtrace("SUPER NASTY BASE CASE PROBLEMS"));
+      //}   
+      //else 
+      //{   
+      //something
+      //  rtrace("Noman's land. kcount = 1");
+      //}   
     }//end for
     return (((float)(tempelem/1.0)));
   }
@@ -260,28 +263,30 @@ unsigned int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * fil
     //loop through, if not dead, change end to the split.
     for (i = 0; i < m; i++) 
     {
-      if (ibegin[i] >= 0)
+      if (split[i] >= 0)
       {
         iend[i] = split[i];
-        return (recursive(m,n,k,ibegin,iend,file));
+        //return (recursive(m,n,k,ibegin,iend,file));
       }
       else
       {
         rtrace("ibegin is error'd");
       }
     }
+    return (recursive(m,n,k,ibegin,iend,file));
   }
   else if (kcount < k)
   {
     for (i = 0; i < m; i++)
     {
-      if (ibegin[i] >= 0)
+      if (split[i] >= 0)
       {
         ibegin[i] = split[i]+1;
         rtrace("Kcount = %d", kcount);
-        return (recursive(m,n,(k-kcount),ibegin,iend,file));
+        //return (recursive(m,n,(k-kcount),ibegin,iend,file));
       }
     }
+    return (recursive(m,n,(k-kcount),ibegin,iend,file));
   }
   rtrace("kcount = %d", kcount);
   exit(1);//(rtrace("WE DID NOT SUCCEED...sad face"));
@@ -337,6 +342,7 @@ int binsearch(int ibegin, int iend, unsigned int radix, FILE * file[], int m)
 {
   struct rec input;
   int index;
+  int temp;
   if (ibegin == iend)
   {
     trace("ibegin == iend");
@@ -366,12 +372,31 @@ int binsearch(int ibegin, int iend, unsigned int radix, FILE * file[], int m)
     if (htonl(input.x) > radix)
     {
       //trace("lefting ibegin = %d, index = %d, radix = %u, m = %d", ibegin, index-1, radix, m);
-      return (binsearch(ibegin, index-1, radix, file, m));
+      temp = (binsearch(ibegin, index-1, radix, file, m));
+      index = -2;
+      if (temp == -2)
+      {
+        return index; 
+      }
+      else 
+      {
+        return temp;
+      }
     }
     else 
     {
       //trace("righting index = %d, iend = %d, radix = %u, m = %d", index+1, iend, radix, m);
-      return (binsearch(index+1, iend, radix, file, m));
+
+      temp = (binsearch(index+1, iend, radix, file, m));
+
+      if (temp == -2)
+      {
+        return index;
+      }
+      else 
+      {
+        return temp;
+      }
     }
   }
 }
