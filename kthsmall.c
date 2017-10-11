@@ -163,30 +163,30 @@ int recursive(int m, int n, int k, int * ibegin, int * iend, FILE * file[])
   //base case
   else if (kcount == k) 
   {
-    //no recurse, i have answer in karray. 
-    //use the largest of the m-set iend elements
+    //get the largest elem at the end. 
     for (i = 0; i < m; i++)
     {
-      if (ibegin[i] <= iend[i])
+      if (ibegin[i] <= iend[i])//selects all undeadedended
       {
         tempelem = NON_ELEM;
-        if (iend[i] > ibegin[i])
-        {
-          fseek(file[i], iend[i]*sizeof(unsigned int), SEEK_SET);
-          fread(&input,sizeof(struct rec),1,file[i]); 
-          rewind(file[i]);
-          if (htonl(input.x) > tempelem)
-          {
-            tempelem = htonl(input.x);
-          }
-        }
-        else
-        {
-          rtrace("an array is deadened");
-          //return(rtrace("SUPER NASTY BASE CASE PROBLEMS"));
-        }
+        fread(&input,sizeof(struct rec),1,file[i]); 
+        rewind(file[i]);
       }
-    }
+      if (htonl(input.x) > tempelem)
+      {
+        tempelem = htonl(input.x);
+      }
+      else if (ibegin[i] > iend[i])
+      {
+        rtrace("an array is deadened");
+        //return(rtrace("SUPER NASTY BASE CASE PROBLEMS"));
+      }
+      else 
+      {
+        //something
+        rtrace("Noman's land. kcount = 1");
+      }
+    }//end for
     return (rtrace("base ending k = kcount, answer is = %.0f", ((float)(tempelem/1.0))));
   }
   //
@@ -272,9 +272,9 @@ int endElem(int * endArray, int * begArray, int length, bool big_small) // 0 = s
 }
 int int_cmp(const void *a, const void *b) 
 { 
-    const int *ia = (const int *)a; // casting pointer types 
-    const int *ib = (const int *)b;
-    return *ia  - *ib; 
-	/* integer comparison: returns negative if b > a 
-	and positive if a > b */ 
+  const int *ia = (const int *)a; // casting pointer types 
+  const int *ib = (const int *)b;
+  return *ia  - *ib; 
+  /* integer comparison: returns negative if b > a 
+     and positive if a > b */ 
 } 
