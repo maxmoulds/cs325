@@ -33,16 +33,9 @@ with open("input.txt") as input_file:
                      results[j][i] = results[j][i+1] + results[j][i] #down is better
                  if ((results[j][i] > val)):
                      val = results[j][i]
-   
-
-
-
-    #print results
-    print "val is = ", val
+    #print "val is = ", val
+    input_file.close()
 
 with open("output.txt", "w") as output_file: 
-    output_file.write("Hello World") 
-    output_file.write("This is our new text output_file") 
-    output_file.write("and this is another line.") 
-    output_file.write("Why? Because we can.") 
+    output_file.write(str(val))
     output_file.close()
